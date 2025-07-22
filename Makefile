@@ -26,9 +26,9 @@ ifeq ($(UNAME), MSYS_NT-10.0-26100)
 LIBS := -libglfw3.a -lgdi32 -lopengl32 -llua54.a
 endif
 
-all: $(B_DIR)/$(TARGET_EXEC)
+all: $(TARGET_EXEC)
 
-$(B_DIR)/$(TARGET_EXEC) : $(OBJS)
+$(TARGET_EXEC) : $(OBJS)
 	$(CXX) $(CXX_FLAGS) -o $@ $^ $(L_DIR) $(LIBS)
 
 # Get .cpp -> .o for src/common

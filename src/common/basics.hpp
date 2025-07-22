@@ -8,5 +8,4 @@ struct cStance
 {
   glm::vec3 position {};
 };
-
 }
