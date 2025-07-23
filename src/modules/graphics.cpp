@@ -17,7 +17,7 @@ void Graphics::update(float dt)
   {
     cStance* st = get<cStance>(id);
     cGraphics* gr = get<cGraphics>(id);
-
+    
      
   }
 }

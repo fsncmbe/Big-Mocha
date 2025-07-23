@@ -45,6 +45,11 @@ class HandleMap
     connection_[id] = data_.size() - 1; 
   }
 
+  /**
+   * @brief removes id and its data and swaps its place with the last id and data
+   * 
+   * @param id 
+   */
   void remove(int id)
   {
     if (!has(id)) return;
@@ -64,11 +69,23 @@ class HandleMap
     connection_.erase(id);
   }
 
+  /**
+   * @brief get pointer to data of id
+   * 
+   * @param id 
+   * @return T* 
+   */
   T* get(int id)
   {
     return &(data_[connection_[id]]);
   }
 
+  /**
+   * @brief set ids data to item
+   * 
+   * @param id 
+   * @param item 
+   */
   void set(int id, const T& item)
   {
     if (!has(id)) return;
@@ -76,6 +93,10 @@ class HandleMap
     data_[connection_[id]] = item;
   }
 
+  /**
+   * @brief clear all 
+   * 
+   */
   void clear()
   {
     identifier_.clear();
@@ -83,9 +104,24 @@ class HandleMap
     connection_.clear();
   }
 
+  /**
+   * @brief return a vector with all ids
+   * 
+   * @return std::vector<int> 
+   */
   std::vector<int> view()
   {
     return identifier_;
+  }
+
+  /**
+   * @brief amount of id,data - pairs stored
+   * 
+   * @return int 
+   */
+  int size()
+  {
+    return identifier_.size();
   }
 
  private:
@@ -98,9 +134,18 @@ template<typename ...T>
 class View
 {
  public:
+  /**
+   * @brief Construct a new View object
+   * 
+   * @param args used to store HandleMap types defined with T...
+   */
   View(HandleMap<T>&... args) : maps(args...) {}
 
-  // returns view of identifier with type T
+  /**
+   * @brief get vector of all ids that match the given types inside world
+   * 
+   * @return std::vector<int> 
+   */
   std::vector<int> get()
   {
     std::vector<int> out;
@@ -123,20 +168,46 @@ class View
 class World
 {
  public:
+  /**
+   * @brief singleton structure
+   * 
+   * @return World& 
+   */
   static World& get()
   {
     static World inst;
     return inst;
   }
 
+  /**
+   * @brief increment entity amount
+   * 
+   * @return int 
+   */
   int next() {return next_entity++;}
+
+  /**
+   * @brief decrement entity amount
+   * 
+   */
   void back() {next_entity--;}
 
+  /**
+   * @brief get all HandleMaps inside world
+   * 
+   * @return std::unordered_map<std::type_index, void*>  void* is HandleMap<T>
+   */
   std::unordered_map<std::type_index, void*> view()
   {
     return maps_;
   }
 
+  /**
+   * @brief get a single HandleMap that has the type T
+   * 
+   * @tparam T 
+   * @return HandleMap<T>& 
+   */
   template<typename T>
   HandleMap<T>& view()
   {
@@ -147,6 +218,10 @@ class World
     return *static_cast<HandleMap<T>*>(maps_[t]);
   }
 
+  /**
+   * @brief delete to keep singleton functionality
+   * 
+   */
   void operator=(const World&) = delete;
 
  private:
@@ -161,28 +236,66 @@ class System
   virtual void update(float dt) = 0;
 };
 
+/**
+ * @brief create an entity
+ * 
+ * @return int 
+ */
 int create();
 
+/**
+ * @brief remove an entity
+ * 
+ * @param id 
+ */
 void remove(int id);
 
+/**
+ * @brief add a component to an entity id
+ * 
+ * @tparam T component type
+ * @param id entity id
+ * @param data component data
+ */
 template<typename T>
 void emplace(int id, const T& data)
 {
   World::get().view<T>().add(id, data);
 }
 
+/**
+ * @brief get component data pointer from an entity
+ * 
+ * @tparam T component type
+ * @param id entity id
+ * @return T* pointer to component
+ */
 template<typename T>
 T* get(int id)
 {
   return World::get().view<T>().get(id);
 }
 
+/**
+ * @brief if the entity has a component of type T
+ * 
+ * @tparam T 
+ * @param id 
+ * @return true 
+ * @return false 
+ */
 template<typename T>
 bool has(int id)
 {
   return World::get().view<T>().has(id);
 }
 
+/**
+ * @brief get all entities that have the given types as components
+ * 
+ * @tparam T types of components
+ * @return std::vector<int> all entities that matchs
+ */
 template<typename ...T>
 std::vector<int> view()
 {

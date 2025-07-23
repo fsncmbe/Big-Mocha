@@ -2,8 +2,14 @@
 
 #include <modules/ecs.hpp>
 #include <modules/window.hpp>
+#include <modules/resource.hpp>
 
-namespace mocha
-{
+#ifdef __linux__
+  #define LINUX
+#endif
 
-} // mocha
+#ifdef _WIN32
+  #define WINDOWS
+#endif
+
+#define CAST_STR(o) std::any_cast<std::string>(o)

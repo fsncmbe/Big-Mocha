@@ -9,6 +9,12 @@ int main()
   double* dt = window->getDelta();
   systems.push_back(window);
 
+  auto res = new mocha::Resource();
+  mocha::ResourceHandle txt = res->load("text/s_hello.txt");
+
+  auto a = CAST_STR(*res->get(txt.uuid));
+  std::cout << a << "\n";
+
   int i {0};
   while (true)
   {
