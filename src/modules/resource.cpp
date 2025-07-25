@@ -8,7 +8,7 @@ namespace mocha
 {
 
 // Type specific loading Mechanisms
-std::any* loadData(std::filesystem::path path);
+std::any loadData(std::filesystem::path path);
 std::string loadFile(std::filesystem::path path);
 Shader loadShader(std::filesystem::path path);
 Model loadModel(std::filesystem::path path);
@@ -23,7 +23,7 @@ DataHandle* Resource::getDataHandle(int uuid)
   }
   else
   {
-    return dynamic_map_.get(uuid);
+    return &dynamic_map_[uuid];
   }
 }
 
@@ -31,7 +31,7 @@ int Resource::add(bool dynamic, DataHandle handle)
 {
   if (dynamic)
   {
-    dynamic_map_.add(data_count_++, handle);
+    dynamic_map_[data_count_++] =  handle;
   } else
   {
     static_map_.add(data_count_++, handle);
@@ -46,7 +46,7 @@ ResourceHandle Resource::load(const std::string& path)
   fsys::path fpath = fsys::current_path();
   fpath.append("assets/" + path);
 
-  std::any* data = loadData(fpath);
+  std::any data = loadData(fpath);
 
   auto last_write_time =  fsys::last_write_time(fpath);
   std::string fname = fpath.filename();
@@ -65,7 +65,7 @@ void Resource::unload(int uuid)
     std::cout << "File is static!";
   }
 
-  DataHandle* dh = dynamic_map_.get(uuid);
+  DataHandle* dh = &dynamic_map_[uuid];
 
   // differentiate between if there still is a reference or not
   if (dh->count > 0)
@@ -73,14 +73,14 @@ void Resource::unload(int uuid)
     dh->ready = false;
     dh->data = nullptr;
   } else {
-    dynamic_map_.remove(uuid);
+    dynamic_map_.erase(uuid);
   }
 }
 
 void Resource::reload(int uuid)
 {
   DataHandle* dh = getDataHandle(uuid);
-  std::any* data = loadData(dh->path);
+  std::any data = loadData(dh->path);
   auto last_write_time = std::filesystem::last_write_time(dh->path);
 
   static_map_.set(uuid, DataHandle{.data{data}, .path{dh->path}, .count{dh->count}, .ready{true}, .last_write_time{last_write_time}});
@@ -96,7 +96,7 @@ void Resource::replace(int uuid, const std::string& path)
 
 std::any* Resource::get(int uuid)
 {
-  return getDataHandle(uuid)->data;
+  return &getDataHandle(uuid)->data;
 }
 
 void Resource::clearDynamic()
@@ -107,30 +107,19 @@ void Resource::clearDynamic()
 
 void Resource::update(float dt)
 {
-  for (int uuid : dynamic_map_.view())
+  for (auto& [uuid, data] : dynamic_map_)
   {
-    DataHandle* dh = dynamic_map_.get(uuid);
+    DataHandle* dh = &data;
     if (dh->count <= 0)
     {
-      dynamic_map_.remove(uuid);
+      dynamic_map_.erase(uuid);
       continue;
     }
-
-    std::cout << uuid << "\n";
     // hot reload
     auto current_lwt = std::filesystem::last_write_time(dh->path);
     if (dh->last_write_time.time_since_epoch() != current_lwt.time_since_epoch())
     {
-      reload(uuid);
-    }
-  }
-
-  for (int uuid : static_map_.view())
-  {
-    DataHandle* dh = static_map_.get(uuid);
-    auto current_lwt = std::filesystem::last_write_time(dh->path);
-    if (dh->last_write_time.time_since_epoch() != current_lwt.time_since_epoch())
-    {
+      std::cout << "h";
       reload(uuid);
     }
   }
@@ -138,15 +127,15 @@ void Resource::update(float dt)
 
 void Resource::decreaseCount(int uuid)
 {
-  dynamic_map_.get(uuid)->count--;
+  dynamic_map_[uuid].count--;
 }
 
 void Resource::increaseCount(int uuid)
 {
-  dynamic_map_.get(uuid)->count++;
+  dynamic_map_[uuid].count++;
 }
 
-std::any* loadData(std::filesystem::path path)
+std::any loadData(std::filesystem::path path)
 {
   namespace fsys = std::filesystem;
 
@@ -167,7 +156,7 @@ std::any* loadData(std::filesystem::path path)
       data = loadText(path); break;
   }
   
-  return &data;
+  return data;
 }
 
 std::string loadFile(std::filesystem::path path)

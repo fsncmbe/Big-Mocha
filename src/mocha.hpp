@@ -1,5 +1,6 @@
 #pragma once
 
+#include <common/basics.hpp>
 #include <modules/ecs.hpp>
 #include <modules/window.hpp>
 #include <modules/resource.hpp>
@@ -12,4 +13,4 @@
   #define WINDOWS
 #endif
 
-#define CAST_STR(o) std::any_cast<std::string>(o)
+#define CAST_TEXTFILE(o) std::any_cast<mocha::Textfile>(o)

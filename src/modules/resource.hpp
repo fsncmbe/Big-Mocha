@@ -22,7 +22,7 @@ enum class FileExtension
 
 struct DataHandle
 {
-  std::any* data;
+  std::any data;
   std::filesystem::path path;
   int count {0};
   bool ready {false};
@@ -113,7 +113,7 @@ class Resource : public System
   // static is all that is loaded before gameloop starts, cannot be changed after
   HandleMap<DataHandle> static_map_ {};
   // identifiers start at static_map.size() as static map does not change
-  HandleMap<DataHandle> dynamic_map_ {};
+  std::unordered_map<int, DataHandle> dynamic_map_ {};
 
   /**
    * @brief adds the data handle to either static or dynamic map

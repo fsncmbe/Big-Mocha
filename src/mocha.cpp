@@ -9,7 +9,10 @@ int main()
   double* dt = window->getDelta();
 
   auto res = new mocha::Resource();
-  mocha::ResourceHandle txt = res->load("text/s_hello.txt");
+  mocha::ResourceHandle txt = res->load("text/d_hello.txt");
+  std::cout << txt.uuid << "\n";
+  mocha::ResourceHandle t = res->load("text/s_hello.txt");
+  std::cout << t.uuid << "\n";
 
   systems.push_back(window);
   systems.push_back(res);
@@ -22,7 +25,8 @@ int main()
       i++;
       if (i%100000 == 0)
       {
-        std::cout << CAST_STR(*res->get(txt.uuid)) << "\n";
+        std::cout << CAST_TEXTFILE(*res->get(txt.uuid)).text << "\n";
+        std::cout << CAST_TEXTFILE(*res->get(t.uuid)).text << "\n";
       }
     }
   }
