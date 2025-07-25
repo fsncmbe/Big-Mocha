@@ -8,10 +8,11 @@ namespace mocha
 {
 
 // Type specific loading Mechanisms
-std::any loadData(std::filesystem::path path);
+std::any* loadData(std::filesystem::path path);
 std::string loadFile(std::filesystem::path path);
 Shader loadShader(std::filesystem::path path);
 Model loadModel(std::filesystem::path path);
+Textfile loadText(std::filesystem::path path);
 FileExtension stringToExt(const std::string& ext);
 
 DataHandle* Resource::getDataHandle(int uuid)
@@ -45,7 +46,7 @@ ResourceHandle Resource::load(const std::string& path)
   fsys::path fpath = fsys::current_path();
   fpath.append("assets/" + path);
 
-  std::any data = loadData(fpath);
+  std::any* data = loadData(fpath);
 
   auto last_write_time =  fsys::last_write_time(fpath);
   std::string fname = fpath.filename();
@@ -79,7 +80,7 @@ void Resource::unload(int uuid)
 void Resource::reload(int uuid)
 {
   DataHandle* dh = getDataHandle(uuid);
-  auto data = loadData(dh->path);
+  std::any* data = loadData(dh->path);
   auto last_write_time = std::filesystem::last_write_time(dh->path);
 
   static_map_.set(uuid, DataHandle{.data{data}, .path{dh->path}, .count{dh->count}, .ready{true}, .last_write_time{last_write_time}});
@@ -95,7 +96,7 @@ void Resource::replace(int uuid, const std::string& path)
 
 std::any* Resource::get(int uuid)
 {
-  return &getDataHandle(uuid)->data;
+  return getDataHandle(uuid)->data;
 }
 
 void Resource::clearDynamic()
@@ -145,7 +146,7 @@ void Resource::increaseCount(int uuid)
   dynamic_map_.get(uuid)->count++;
 }
 
-std::any loadData(std::filesystem::path path)
+std::any* loadData(std::filesystem::path path)
 {
   namespace fsys = std::filesystem;
 
@@ -163,10 +164,10 @@ std::any loadData(std::filesystem::path path)
     case (FileExtension::kobj):
       data = loadModel(path); break;
     case (FileExtension::ktxt):
-      data = loadFile(path); break;
+      data = loadText(path); break;
   }
   
-  return data;
+  return &data;
 }
 
 std::string loadFile(std::filesystem::path path)
@@ -180,6 +181,11 @@ std::string loadFile(std::filesystem::path path)
                     std::istreambuf_iterator<char>());
   file.close();
   return out;
+}
+
+Textfile loadText(std::filesystem::path path)
+{
+  return Textfile{.text{loadFile(path)}};
 }
 
 Shader loadShader(std::filesystem::path path)

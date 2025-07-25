@@ -22,7 +22,7 @@ enum class FileExtension
 
 struct DataHandle
 {
-  std::any data;
+  std::any* data;
   std::filesystem::path path;
   int count {0};
   bool ready {false};
