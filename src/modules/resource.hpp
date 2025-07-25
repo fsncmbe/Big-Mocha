@@ -3,6 +3,7 @@
 #include <any>
 #include <string>
 #include <filesystem>
+#include <typeindex>
 
 #include <modules/ecs.hpp>
 
@@ -20,116 +21,236 @@ enum class FileExtension
   knull,
 };
 
-struct DataHandle
+template<typename T>
+struct ResourceHandle
 {
   std::any data;
   std::filesystem::path path;
   int count {0};
   bool ready {false};
-  std::filesystem::file_time_type last_write_time;
+  std::filesystem::file_time_type lwt;
 };
 
-struct ResourceHandle
+template<typename T>
+struct Handle
 {
   int uuid;
 };
 
-/**
- * @brief Resource Singleton for all asset relates stuff
- * 
- */
+template<typename T>
+class ResourceMap
+{
+ public:
+  Handle<T> load(std::filesystem::path path);
+
+  T* get(int uuid);
+  T* get(std::filesystem::path path);
+
+  void unload(int uuid);
+  void unload(std::filesystem::path path);
+
+  void reload(int uuid);
+  void reload(std::filesystem::path path);
+
+  bool has(int uuid);
+  bool has(std::filesystem::path path);
+
+ private:
+  std::vector<ResourceHandle<T>> fixed;
+  std::vector<ResourceHandle<T>> dynamic;
+  std::unordered_map<std::filesystem::path, int> path_to_int;
+  int next_uuid {0};
+};
+
 class Resource : public System
 {
  public:
-  /**
-   * @brief loads a file and returns its handle
-   * 
-   * @param path
-   * @return ResourceHandle
-   */
-  ResourceHandle  load(const std::string& path);
+  Resource(std::filesystem::path path_to_assets);
 
-  /**
-   * @brief unloads a file, not possible for statics
-   * 
-   * @param uuid uuid of file
-   */
-  void            unload(int uuid);
+  template<typename T>
+  Handle<T> load(std::filesystem::path path);
 
-  /**
-   * @brief reloads a file, possible for statics
-   * 
-   * @param uuid 
-   */
-  void            reload(int uuid);
+  template<typename T>
+  T* get(int uuid);
 
-  /**
-   * @brief replaces data of a uuid with file from another path
-   * 
-   * @param uuid of file
-   * @param path of file
-   */
-  void            replace(int uuid, const std::string& path);
+  template<typename T>
+  T* get(std::filesystem::path path);
 
-  /**
-   * @brief Get Data from given resource handle uuid
-   * 
-   * @param uuid 
-   * @return std::any* is type of data saved, not DataHandle!
-   */
-  std::any*       get(int uuid);
+  template<typename T>
+  void unload(int uuid);
 
-  /**
-   * @brief clears dynamic_map_ and sets data_count to size
-   * 
-   */
-  void            clearDynamic();
+  template<typename T>
+  void unload(std::filesystem::path path);
 
-  /**
-   * @brief checks every frame if a dynamic files count <= 0 and deletes it
-   * 
-   * @param dt
-   */
-  void            update(float dt);
-  
-  /**
-   * @brief decreases count of DataHandle with uuid
-   * 
-   * @param uuid 
-   */
-  void            decreaseCount(int uuid);
+  template<typename T>
+  void reload(int uuid);
 
-  /**
-   * @brief increases count of DataHandle with uuid
-   * 
-   * @param uuid 
-   */
-  void            increaseCount(int uuid);
+  template<typename T>
+  void reload(std::filesystem::path path);
+
+  void update(float dt);
 
  private:
-  // file prefix decides if static = s_ or dynamic d_.
-  // defaults to dynamic but use d_ for overview.
-  int data_count_ {0};
-  // static is all that is loaded before gameloop starts, cannot be changed after
-  HandleMap<DataHandle> static_map_ {};
-  // identifiers start at static_map.size() as static map does not change
-  std::unordered_map<int, DataHandle> dynamic_map_ {};
+  std::filesystem::path asset_path;
+  std::unordered_map<std::type_index, ResourceMap<std::any>> resource_map {};
 
-  /**
-   * @brief adds the data handle to either static or dynamic map
-   * 
-   * @param dynamic
-   * @param handle
-   * @return int = uuid
-   */
-  int add(bool dynamic, DataHandle handle);
-
-  /**
-   * @brief Get the Data Handle of uuid, change of 
-   * 
-   * @param uuid 
-   * @return DataHandle* 
-   */
-  DataHandle*     getDataHandle(int uuid);
+  void checkMap(std::type_index t);
+  void checkMap(std::type_index t, int uuid);
+  void checkMap(std::type_index t, std::filesystem::path path);
 };
+
+// ResourceMap
+
+template<typename T>
+Handle<T> ResourceMap<T>::load(std::filesystem::path path)
+{
+  std::string prefix = path.filename().string().substr(0, 2);
+  bool fix = prefix == "s_";
+  
+  T data = static_cast<T>(loadData(path));
+
+  auto last_write_time =  fsys::last_write_time(fpath);
+
+  auto rh = ResourceHandle<T>{.data{data}, .path{path}, .count{1}, .ready{true}, .lwt{last_write_time}};
+
+  if (fix)
+  {
+    fixed.push_back(rh);
+  }
+  else
+  {
+    dynamic.push_back(rh);
+  }
+
+  return Handle<T>{next_uuid++};
+}
+
+template<typename T>
+T* ResourceMap<T>::get(int uuid)
+{
+  if (uuid < fixed.size())
+    return fixed
+}
+
+template<typename T>
+T* ResourceMap<T>::get(std::filesystem::path path)
+{
+
+}
+
+template<typename T>
+void ResourceMap<T>::unload(int uuid)
+{
+  
+}
+
+template<typename T>
+void ResourceMap<T>::unload(std::filesystem::path path)
+{
+  
+}
+
+template<typename T>
+void ResourceMap<T>::reload(int uuid)
+{
+  
+}
+
+template<typename T>
+void ResourceMap<T>::reload(std::filesystem::path path)
+{
+  
+}
+
+template<typename T>
+bool ResourceMap<T>::has(int uuid)
+{
+  
+}
+
+template<typename T>
+bool ResourceMap<T>::has(std::filesystem::path path)
+{
+  
+}
+
+// Resource 
+
+template<typename T>
+Handle<T> Resource::load(std::filesystem::path path)
+{
+  auto t = std::type_index(typeid(T));
+  checkMap(t);
+  return resource_map[t].load(path);
+}
+
+template<typename T>
+T* Resource::get(std::filesystem::path path)
+{
+  auto t = std::type_index(typeid(T));
+  checkMap(t);
+  return resource_map[t].get(path);
+}
+
+ template<typename T>
+T* Resource::get(int uuid)
+{
+  auto t = std::type_index(typeid(T));
+  checkMap(t);
+  return resource_map[t].get(uuid);
+}
+
+template<typename T>
+void Resource::unload(int uuid)
+{
+  auto t = std::type_index(typeid(T));
+  checkMap(t);
+  resource_map[t].unload(uuid);
+}
+
+template<typename T>
+void Resource::unload(std::filesystem::path path)
+{
+  auto t = std::type_index(typeid(T));
+  checkMap(t);
+  resource_map[t].unload(path);
+}
+
+template<typename T>
+void reload(int uuid)
+{
+  auto t = std::type_index(typeid(T));
+  checkMap(t);
+  resource_map[t].reload(uuid);
+}
+
+template<typename T>
+void reload(std::filesystem::path path)
+{
+  auto t = std::type_index(typeid(T));
+  checkMap(t);
+  resource_map[t].reload(path);
+}
+
+void Resource::checkMap(std::type_index t)
+{
+  if (resource_map.find(t) == resource_map.end())
+    resource_map[t];
+}
+
+void Resource::checkMap(std::type_index t, int uuid)
+{
+  checkMap(t);
+  if (!resource_map[t].has(uuid))
+    std::cout << "Id non existend\n";
+}
+
+void Resource::checkMap(std::type_index t, std::filesystem::path path)
+{
+  checkMap(t);
+  if (!resource_map[t].has(path))
+    std::cout << "Id non existend\n";
+}
+
+
 }
