@@ -51,5 +51,5 @@ clean:
 	rm -r $(B_DIR)/*
 
 .PHONY: run
-run: $(B_DIR)/$(TARGET_EXEC)
-	./$(B_DIR)/$(TARGET_EXEC)
+run: $(TARGET_EXEC)
+	./$(TARGET_EXEC)

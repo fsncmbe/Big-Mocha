@@ -1,5 +1,4 @@
 #include <iostream>
-#include <filesystem>
 #include <fstream>
 
 #include <modules/resource.hpp>
@@ -8,112 +7,198 @@
 namespace mocha
 {
 
-  // Type specific loading Mechanisms
-  std::string loadFile(const std::string& path);
-  Shader loadShader(const std::string& path);
-  Model loadModel(const std::string& path);
+// Type specific loading Mechanisms
+std::any loadData(std::filesystem::path path);
+std::string loadFile(std::filesystem::path path);
+Shader loadShader(std::filesystem::path path);
+Model loadModel(std::filesystem::path path);
+FileExtension stringToExt(const std::string& ext);
 
-  FileExtension stringToExt(const std::string& ext)
+DataHandle* Resource::getDataHandle(int uuid)
+{
+  if (uuid < static_map_.size())
   {
-    if (ext == ".txt")  return FileExtension::ktxt;
-    if (ext == ".sh")   return FileExtension::ksh;
-    if (ext == ".vs")   return FileExtension::kvs;
-    if (ext == ".fs")   return FileExtension::kfs;
-    if (ext == ".obj")  return FileExtension::kobj;
-    return FileExtension::knull;
+    return static_map_.get(uuid);
+  }
+  else
+  {
+    return dynamic_map_.get(uuid);
+  }
+}
+
+int Resource::add(bool dynamic, DataHandle handle)
+{
+  if (dynamic)
+  {
+    dynamic_map_.add(data_count_++, handle);
+  } else
+  {
+    static_map_.add(data_count_++, handle);
   }
 
-  int Resource::add(bool dynamic, DataHandle handle)
+  return data_count_ - 1;
+}
+
+ResourceHandle Resource::load(const std::string& path)
+{
+  namespace fsys = std::filesystem;
+  fsys::path fpath = fsys::current_path();
+  fpath.append("assets/" + path);
+
+  std::any data = loadData(fpath);
+
+  auto last_write_time =  fsys::last_write_time(fpath);
+  std::string fname = fpath.filename();
+  bool dynamic = !(fname.substr(0, 2) == "s_");
+
+  int uuid = add(dynamic, DataHandle{.data{data}, .path{fpath},
+          .count{1}, .ready{true}, .last_write_time{last_write_time}});
+  // IMPLEMENT THREAD LOADING HERE!!!
+  return ResourceHandle{.uuid{uuid}};
+}
+
+void Resource::unload(int uuid)
+{
+  if (uuid < static_map_.size())
   {
-    if (dynamic)
+    std::cout << "File is static!";
+  }
+
+  DataHandle* dh = dynamic_map_.get(uuid);
+
+  // differentiate between if there still is a reference or not
+  if (dh->count > 0)
+  {
+    dh->ready = false;
+    dh->data = nullptr;
+  } else {
+    dynamic_map_.remove(uuid);
+  }
+}
+
+void Resource::reload(int uuid)
+{
+  DataHandle* dh = getDataHandle(uuid);
+  auto data = loadData(dh->path);
+  auto last_write_time = std::filesystem::last_write_time(dh->path);
+
+  
+}
+
+void Resource::replace(int uuid, const std::string& path)
+{
+  DataHandle* dh = getDataHandle(uuid);
+  dh->data = loadData(path);
+  dh->last_write_time = std::filesystem::last_write_time(dh->path);
+}
+
+std::any* Resource::get(int uuid)
+{
+  return &getDataHandle(uuid)->data;
+}
+
+void Resource::clearDynamic()
+{
+  data_count_ = static_map_.size();
+  dynamic_map_.clear();
+}
+
+void Resource::update(float dt)
+{
+  for (int uuid : dynamic_map_.view())
+  {
+    DataHandle* dh = dynamic_map_.get(uuid);
+    if (dh->count <= 0)
     {
-      dynamic_map_.add(data_count_++, handle);
-    } else
-    {
-      static_map_.add(data_count_++, handle);
+      dynamic_map_.remove(uuid);
+      continue;
     }
 
-    return data_count_ - 1;
-  }
-
-  ResourceHandle Resource::load(const std::string& path)
-  {
-    namespace fsys = std::filesystem;
-
-    fsys::path fpath = fsys::current_path();
-    fpath.append(ASSET_PATH);
-    fpath.append(path);
-
-    if (!fsys::exists(fpath))
-      std::cout << "Missing file: " << fpath << "\n";
-    
-    DataHandle d_handle = {.path{path}};
-
-    switch (stringToExt(fpath.extension()))
+    std::cout << uuid << "\n";
+    // hot reload
+    auto current_lwt = std::filesystem::last_write_time(dh->path);
+    if (dh->last_write_time.time_since_epoch() != current_lwt.time_since_epoch())
     {
-      case (FileExtension::ksh):
-      case (FileExtension::kvs):
-      case (FileExtension::kfs):
-        d_handle.data = loadShader(path.substr(0, path.size()-3)); break;
-      case (FileExtension::kobj):
-        d_handle.data = loadModel(path); break;
-      case (FileExtension::ktxt):
-        d_handle.data = loadFile(path); break;
-    }
-
-    std::string fname = fpath.filename();
-    bool dynamic = !(fname.substr(0, 2) == "s_");
-
-    int uuid = add(dynamic, d_handle);
-
-    return ResourceHandle{.uuid{uuid}};
-  }
-
-  std::any* Resource::get(int uuid)
-  {
-    if (uuid < static_map_.size())
-    {
-      return &static_map_.get(uuid)->data;
-    }
-    else
-    {
-      return &dynamic_map_.get(uuid)->data;
+      reload(uuid);
     }
   }
 
-  void Resource::clearDynamic()
+  for (int uuid : static_map_.view())
   {
-    data_count_ = static_map_.size();
-    dynamic_map_.clear();
+    DataHandle* dh = static_map_.get(uuid);
+    auto current_lwt = std::filesystem::last_write_time(dh->path);
+    if (dh->last_write_time.time_since_epoch() != current_lwt.time_since_epoch())
+    {
+      reload(uuid);
+    }
   }
+}
 
-  void Resource::update(float dt)
+void Resource::decreaseCount(int uuid)
+{
+  dynamic_map_.get(uuid)->count--;
+}
+
+void Resource::increaseCount(int uuid)
+{
+  dynamic_map_.get(uuid)->count++;
+}
+
+std::any loadData(std::filesystem::path path)
+{
+  namespace fsys = std::filesystem;
+
+  if (!fsys::exists(path))
+    std::cout << "Missing file: " << path << "\n";
+
+  std::any data;
+
+  switch (stringToExt(path.extension()))
   {
-    
+    case (FileExtension::ksh):
+    case (FileExtension::kvs):
+    case (FileExtension::kfs):
+      data = loadShader(path.string().substr(0, path.string().size()-3)); break;
+    case (FileExtension::kobj):
+      data = loadModel(path); break;
+    case (FileExtension::ktxt):
+      data = loadFile(path); break;
   }
+  
+  return data;
+}
 
-  std::string loadFile(const std::string& path)
-  {
-    std::string fpath = ASSET_PATH + path;
-    std::ifstream file(fpath);
+std::string loadFile(std::filesystem::path path)
+{
+  std::ifstream file(path);
 
-    if(!file.is_open())
-      std::cout << "File couldnt open!\n";
-    
-    std::string out((std::istreambuf_iterator<char>(file)),
-                      std::istreambuf_iterator<char>());
-    file.close();
-    return out;
-  }
+  if(!file.is_open())
+    std::cout << "File couldnt open!\n";
+  
+  std::string out((std::istreambuf_iterator<char>(file)),
+                    std::istreambuf_iterator<char>());
+  file.close();
+  return out;
+}
 
-  Shader loadShader(const std::string& path)
-  {
-    return Shader{};
-  }
+Shader loadShader(std::filesystem::path path)
+{
+  return Shader{};
+}
 
-  Model loadModel(const std::string& path)
-  {
-    return Model{};
-  }
+Model loadModel(std::filesystem::path path)
+{
+  return Model{};
+}
+
+FileExtension stringToExt(const std::string& ext)
+{
+  if (ext == ".txt")  return FileExtension::ktxt;
+  if (ext == ".sh")   return FileExtension::ksh;
+  if (ext == ".vs")   return FileExtension::kvs;
+  if (ext == ".fs")   return FileExtension::kfs;
+  if (ext == ".obj")  return FileExtension::kobj;
+  return FileExtension::knull;
+}
 
 }
