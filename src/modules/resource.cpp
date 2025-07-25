@@ -82,7 +82,8 @@ void Resource::reload(int uuid)
   auto data = loadData(dh->path);
   auto last_write_time = std::filesystem::last_write_time(dh->path);
 
-  
+  static_map_.set(uuid, DataHandle{.data{data}, .path{dh->path}, .count{dh->count}, .ready{true}, .last_write_time{last_write_time}});
+  // still not working
 }
 
 void Resource::replace(int uuid, const std::string& path)
