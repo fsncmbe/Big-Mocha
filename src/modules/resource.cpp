@@ -8,7 +8,6 @@ namespace mocha
 {
 
 // Type specific loading Mechanisms
-std::any loadData(std::filesystem::path path);
 std::string loadFile(std::filesystem::path path);
 Shader loadShader(std::filesystem::path path);
 Model loadModel(std::filesystem::path path);

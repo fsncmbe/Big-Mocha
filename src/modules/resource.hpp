@@ -56,8 +56,7 @@ class ResourceMap
   bool has(std::filesystem::path path);
 
  private:
-  std::vector<ResourceHandle<T>> fixed;
-  std::vector<ResourceHandle<T>> dynamic;
+  std::vector<ResourceHandle<T>> handles;
   std::unordered_map<std::filesystem::path, int> path_to_int;
   int next_uuid {0};
 };
@@ -99,28 +98,22 @@ class Resource : public System
   void checkMap(std::type_index t, std::filesystem::path path);
 };
 
+// Use locally 
+std::any loadData(std::filesystem::path path);
+
 // ResourceMap
 
 template<typename T>
 Handle<T> ResourceMap<T>::load(std::filesystem::path path)
 {
-  std::string prefix = path.filename().string().substr(0, 2);
-  bool fix = prefix == "s_";
   
   T data = static_cast<T>(loadData(path));
 
-  auto last_write_time =  fsys::last_write_time(fpath);
+  auto last_write_time =  std::filesystem::last_write_time(path);
 
   auto rh = ResourceHandle<T>{.data{data}, .path{path}, .count{1}, .ready{true}, .lwt{last_write_time}};
 
-  if (fix)
-  {
-    fixed.push_back(rh);
-  }
-  else
-  {
-    dynamic.push_back(rh);
-  }
+  handles.push_back(rh);
 
   return Handle<T>{next_uuid++};
 }
@@ -128,14 +121,13 @@ Handle<T> ResourceMap<T>::load(std::filesystem::path path)
 template<typename T>
 T* ResourceMap<T>::get(int uuid)
 {
-  if (uuid < fixed.size())
-    return fixed
+  return std::any_cast<T*>(&handles[uuid].data);
 }
 
 template<typename T>
 T* ResourceMap<T>::get(std::filesystem::path path)
 {
-
+  return std::any_cast<T*>(&handles[path_to_int[path]].data);
 }
 
 template<typename T>
@@ -165,7 +157,10 @@ void ResourceMap<T>::reload(std::filesystem::path path)
 template<typename T>
 bool ResourceMap<T>::has(int uuid)
 {
-  
+  for (ResourceHandle<T> rh : handles)
+  {
+    if (rh.)
+  }
 }
 
 template<typename T>
