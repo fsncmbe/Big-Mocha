@@ -8,6 +8,7 @@ namespace mocha
 {
 
 // Type specific loading Mechanisms
+std::any loadData(std::filesystem::path path);
 std::string loadFile(std::filesystem::path path);
 Shader loadShader(std::filesystem::path path);
 Model loadModel(std::filesystem::path path);
@@ -19,6 +20,17 @@ Resource::Resource(std::filesystem::path path)
   asset_path = std::filesystem::current_path();
   asset_path += "/" + path.string();
 }
+
+Handle Resource::load(std::filesystem::path path)
+{
+   std::any data = loadData(path);
+   resource_map[next_uuid++] = ResourceHandle<std::any>{.data{data}, .path{path}, 
+        .count{1}, .ready{true}, .lwt{std::filesystem::last_write_time(path)}};
+
+  return Handle{.uuid{next_uuid-1}};
+}
+
+v
 
 void Resource::update(float dt)
 {
