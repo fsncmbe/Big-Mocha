@@ -8,11 +8,9 @@ int main()
   auto window = new mocha::Window(1920, 1080, "Mocha");
   double* dt = window->getDelta();
 
-  auto res = new mocha::Resource();
-  mocha::ResourceHandle txt = res->load("text/d_hello.txt");
-  std::cout << txt.uuid << "\n";
-  mocha::ResourceHandle t = res->load("text/s_hello.txt");
-  std::cout << t.uuid << "\n";
+  auto res = new mocha::Resource("assets/");
+  mocha::Handle txt = res->load("text/d_hello.txt");
+  mocha::Handle t = res->load("text/s_hello.txt");
 
   systems.push_back(window);
   systems.push_back(res);

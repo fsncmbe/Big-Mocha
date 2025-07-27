@@ -8,6 +8,10 @@
 #include <modules/ecs.hpp>
 
 #define ASSET_PATH "assets/"
+
+#define CAST_TEXTFILE(o) std::any_cast<mocha::Textfile>(o)
+
+
 namespace mocha
 {
 
@@ -21,7 +25,6 @@ enum class FileExtension
   knull,
 };
 
-template<typename T>
 struct ResourceHandle
 {
   std::any data {};
@@ -29,6 +32,10 @@ struct ResourceHandle
   int count {0};
   bool ready {false};
   std::filesystem::file_time_type lwt {};
+  ResourceHandle copy()
+  {
+    return ResourceHandle{.path{path}, .count{count}};
+  }
 };
 
 struct Handle
@@ -43,8 +50,7 @@ class Resource : public System
 
   Handle load(std::filesystem::path path);
 
-  template<typename T>
-  T* get(int uuid);
+  std::any* get(int uuid);
 
   void unload(int uuid);
 
@@ -54,26 +60,10 @@ class Resource : public System
 
  private:
   std::filesystem::path asset_path;
-  std::unordered_map<int, ResourceHandle<std::any>> resource_map {};
+  std::unordered_map<int, ResourceHandle> resource_map {};
   int next_uuid {0};
 
   void checkMap(int uuid);
-  void checkMap(std::filesystem::path path);
 };
-
-// Resource 
-template<typename T>
-T* Resource::get(int uuid)
-{
-  checkMap(uuid);
-  return std::any_cast<T*>(&resource_map[uuid].data);
-}
-
-void Resource::checkMap(int uuid)
-{
-  if (resource_map.find(uuid) == resource_map.end())
-    resource_map[uuid];
-}
-
 
 }
