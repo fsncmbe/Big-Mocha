@@ -133,7 +133,105 @@ Shader loadShader(std::filesystem::path path)
 
 Model loadModel(std::filesystem::path path)
 {
-  return Model{};
+  const char* data_stream = (loadFile(path) + '\n').c_str();
+
+  std::vector<Vertex>       vertices;
+  std::vector<unsigned int> indices;
+  std::vector<glm::vec3>    t_pos;
+  std::vector<glm::vec3>    t_normal;
+  std::vector<glm::vec2>    t_uvs;
+
+  const char* line_start = data_stream;
+
+  for (const char* c = line_start; *c != '\0'; ++c)
+  {
+    if (*c == '\n')
+    {
+      std::string line(line_start, c);
+
+      std::istringstream line_stream(line);
+      std::string t;
+
+      line_stream >> t;
+
+      if (t == "v")
+      {
+        glm::vec3 pos;
+        line_stream >> pos.x >> pos.y >> pos.z;
+        t_pos.push_back(pos);
+      }
+      else if (t == "vn")
+      {
+        glm::vec3 normal;
+        line_stream >> normal.x >> normal.y >> normal.z;
+        t_normal.push_back(normal);
+      }
+      else if (t == "vt")
+      {
+        glm::vec2 uv;
+        line_stream >> uv.x >> uv.y;
+        t_uvs.push_back(uv);
+      }
+      else if (t == "f")
+      {
+        const int f_nums = 3;
+        std::string strings[f_nums];
+        for (int i=0; i<f_nums; i++)
+        {
+          line_stream >> strings[i];
+          unsigned int v_index, uv_index, n_index;
+          sscanf(strings[i].c_str(), "%d/%d/%d", v_index, uv_index, n_index);
+
+          Vertex v;
+
+          v.position = t_pos[v_index-1];
+          v.tex_pos = t_uvs[uv_index-1];
+          v.normal = t_normal[n_index-1];
+
+          auto it = std::find(vertices.begin(), vertices.end(), v);
+
+          if (it != vertices.end())
+          {
+            int index = std::distance(vertices.begin(), it);
+            indices.push_back(index);
+          }
+          else
+          {
+            vertices.push_back(v);
+            indices.push_back(vertices.size()-1);
+          }
+        }
+      }
+      line_start = c + 1;
+    }
+  }
+
+  unsigned int vao, vbo, ebo;
+
+  glGenVertexArrays(1, &vao);
+  glGenBuffers(1, &vbo);
+  glGenBuffers(1, &ebo);
+
+  glBindVertexArray(vao);
+  glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+  glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &indices[0], GL_STATIC_DRAW);
+  
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, tex_pos));
+
+  glEnableVertexAttribArray(2);
+  glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+
+  glBindVertexArray(0);
+
+  return Model{.indices_count{(int)indices.size()}, .vao{vao}};
 }
 
 FileExtension stringToExt(const std::string& ext)

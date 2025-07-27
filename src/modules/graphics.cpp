@@ -4,6 +4,12 @@
 
 namespace mocha
 {
+
+bool Vertex::operator==(const Vertex& other)
+{
+  return position == other.position && normal == other.normal && tex_pos == other.tex_pos;
+}
+
 Graphics::Graphics()
 {
 
@@ -17,8 +23,6 @@ void Graphics::update(float dt)
   {
     cStance* st = get<cStance>(id);
     cGraphics* gr = get<cGraphics>(id);
-    
-     
   }
 }
 }

@@ -13,9 +13,10 @@ namespace mocha
 
 struct Vertex
 {
-  glm::vec3 position {};
-  glm::vec3 normal {};
-  glm::vec2 tex_pos {};
+  glm::vec3 position;
+  glm::vec3 normal;
+  glm::vec2 tex_pos;
+  bool operator==(const Vertex& other);
 };
 
 struct Shader
@@ -25,13 +26,13 @@ struct Shader
 
 struct Model
 {
-  int indices_count {};
-  unsigned int vao {};
+  int indices_count;
+  unsigned int vao;
 };
 
 struct cGraphics
 {
-  Model model {};
+  Model model;
 };
 
 class Graphics : public System
